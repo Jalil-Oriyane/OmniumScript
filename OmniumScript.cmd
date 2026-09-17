@@ -821,12 +821,12 @@ Clear-Host
 $banner = @'
   /$$$$$$                          /$$                                /$$$$$$                      /$$             /$$
  /$$__  $$                        |__/                               /$$__  $$                    |__/            | $$
-| $$  \ $$ /$$$$$$/$$$$  /$$$$$$$  /$$ /$$   /$$ /$$$$$$/$$$$     | $$  \__/  /$$$$$$$  /$$$$$$  /$$  /$$$$$$  /$$$$$$
-| $$  | $$| $$_  $$_  $$| $$__  $$| $$| $$  | $$| $$_  $$_  $$    |  $$$$$$  /$$_____/ /$$__  $$| $$ /$$__  $$|_  $$_/
-| $$  | $$| $$ \ $$ \ $$| $$  \ $$| $$| $$  | $$| $$ \ $$ \ $$     \____  $$| $$      | $$  \__/| $$| $$  \ $$  | $$
-| $$  | $$| $$ | $$ | $$| $$  | $$| $$| $$  | $$| $$ | $$ | $$     /$$  \ $$| $$      | $$      | $$| $$  | $$  | $$ /$$
-|  $$$$$$/| $$ | $$ | $$| $$  | $$| $$|  $$$$$$/| $$ | $$ | $$    |  $$$$$$/|  $$$$$$$| $$      | $$| $$$$$$$/  |  $$$$/
- \______/ |__/ |__/ |__/|__/  |__/|__/ \______/ |__/ |__/ |__/     \______/  \_______/|__/      |__/| $$____/    \___/
+| $$  \ $$ /$$$$$$/$$$$  /$$$$$$$  /$$ /$$   /$$ /$$$$$$/$$$$       | $$  \__/  /$$$$$$$  /$$$$$$  /$$  /$$$$$$  /$$$$$$
+| $$  | $$| $$_  $$_  $$| $$__  $$| $$| $$  | $$| $$_  $$_  $$      |  $$$$$$  /$$_____/ /$$__  $$| $$ /$$__  $$|_  $$_/
+| $$  | $$| $$ \ $$ \ $$| $$  \ $$| $$| $$  | $$| $$ \ $$ \ $$       \____  $$| $$      | $$  \__/| $$| $$  \ $$  | $$
+| $$  | $$| $$ | $$ | $$| $$  | $$| $$| $$  | $$| $$ | $$ | $$       /$$  \ $$| $$      | $$      | $$| $$  | $$  | $$ /$$
+|  $$$$$$/| $$ | $$ | $$| $$  | $$| $$|  $$$$$$/| $$ | $$ | $$      |  $$$$$$/|  $$$$$$$| $$      | $$| $$$$$$$/  |  $$$$/
+ \______/ |__/ |__/ |__/|__/  |__/|__/ \______/ |__/ |__/ |__/       \______/  \_______/|__/      |__/| $$____/    \___/
                                                                                                     | $$
                                                                                                     | $$
                                                                                                     |__/
@@ -860,6 +860,36 @@ Invoke-SafeStage "La procedure de changement du nom du PC" { Configure-ComputerN
 Invoke-SafeStage "La procedure de configuration IP" { Configure-StaticIP }
 # Execute l'etape nommee dans l'enveloppe de securite qui garantit la poursuite du script.
 Invoke-SafeStage "La procedure de changement du mot de passe" { Configure-LocalPassword }
+# Affiche un titre distinct afin que TeamViewer soit traite comme une etape autonome.
+Write-Host "`n--- Installation de TeamViewer ---" -ForegroundColor Cyan
+# Demande une autorisation explicite avant de telecharger ou installer TeamViewer.
+$teamViewerChoice = Read-YesNo "Voulez-vous installer TeamViewer ?"
+# Lance l'installation uniquement lorsque l'utilisateur repond Y.
+if ($teamViewerChoice) {
+    # Protege toute l'etape afin qu'un echec WinGet n'empeche pas les etapes suivantes.
+    try {
+        # Recherche winget.exe dans les commandes accessibles sur ce poste.
+        $wingetCommand = Get-Command winget.exe -ErrorAction Stop
+        # Informe clairement que l'identifiant choisi correspond a TeamViewer complet et non a QuickSupport.
+        Write-Host "Installation de TeamViewer complet (TeamViewer.TeamViewer), pas de QuickSupport..." -ForegroundColor Cyan
+        # Installe exactement le paquet complet depuis la source officielle WinGet pour l'ensemble de la machine.
+        & $wingetCommand.Source install --id TeamViewer.TeamViewer --exact --source winget --scope machine --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
+        # Transforme tout code retour WinGet non nul en erreur explicite.
+        if ($LASTEXITCODE -ne 0) { throw "WinGet a retourne le code $LASTEXITCODE." }
+        # Confirme que WinGet a termine l'installation sans erreur.
+        Write-Ok "TeamViewer complet installe ou deja a jour"
+    # Intercepte et affiche l'erreur tout en poursuivant vers le resume.
+    } catch {
+        # Enregistre l'echec afin qu'il soit comptabilise dans le resume qui suit.
+        Write-StepError "L'installation de TeamViewer complet" $_
+    # Ferme le bloc de gestion d'erreur TeamViewer.
+    }
+# Traite le refus, l'annulation ou la reponse N sans lancer WinGet.
+} else {
+    # Confirme qu'aucun telechargement ni aucune installation TeamViewer n'a ete effectue.
+    Write-Host "Installation de TeamViewer ignoree." -ForegroundColor DarkGray
+# Ferme la condition d'installation TeamViewer.
+}
 # Affiche a l'utilisateur le message d'etat, d'aide ou d'avertissement indique.
 Write-Host "`n--- Resume ---" -ForegroundColor Cyan
 # Evalue la condition ou parcourt la collection indiquee afin de controler le flux du script.
